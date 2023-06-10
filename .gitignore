@@ -1,0 +1,8 @@
+*.wav
+.vscode/
+venv/
+.pytest_cache/
+test/
+*.txt
+__pycache__/
+*.db
