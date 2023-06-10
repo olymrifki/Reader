@@ -4,9 +4,9 @@ conn = sqlite3.connect("reading_data.db")
 print("Opened database successfully")
 
 # conn.execute(
-#     """CREATE TABLE past_reading_progress
+#     """CREATE TABLE reading_progress
 #          (id INTEGER PRIMARY KEY AUTOINCREMENT,
-#          name       TEXT   NOT NULL,
+#          bookmark       TEXT   NOT NULL,
 #          pdf_path       TEXT    NOT NULL,
 #          last_page_index      INTEGER,
 #          audio_path       TEXT     NOT NULL,
@@ -17,7 +17,7 @@ print("Opened database successfully")
 #       VALUES (1, 'Paul', 32, 'California', 20000.00 )"
 # )
 conn.execute(
-    "INSERT INTO past_reading_progress (name, pdf_path, last_page_index, audio_path, last_time) \
+    "INSERT INTO reading_progress (bookmark, pdf_path, last_page_index, audio_path, last_time) \
     VALUES (?,?,?,?, ?);",
     (
         "dwadwa",
