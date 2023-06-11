@@ -64,26 +64,26 @@ class PDFHandler:
     def get_sorted_section_list(self):
         return [
             self.get_section_from_bookmark(bookmark)
-            for bookmark in self._get_sorted_bookmark_list
+            for bookmark in self._get_sorted_bookmark_list()
         ]
 
     def get_section_from_bookmark(self, bookmark):
         bookmark_to_page_dict = self._get_bookmark_to_page_dict()
         start_page_index = bookmark_to_page_dict.get(bookmark)
-
+        bookmark_pages_list = self._get_sorted_bookmark_list()
         stop_page_index = start_page_index
         extra_index = 0
         while start_page_index is not None and start_page_index == stop_page_index:
             try:
-                next_bookmark = self.bookmark_pages_list[
-                    self.bookmark_pages_list.index(bookmark) + 1 + extra_index
+                next_bookmark = bookmark_pages_list[
+                    bookmark_pages_list.index(bookmark) + 1 + extra_index
                 ]
             except IndexError:
-                stop_page_index = (
-                    self.pdf_reader.numPages
+                stop_page_index = len(
+                    self.pdf_reader.pages
                 )  # this will always be bigger than page index
             else:
-                stop_page_index = self.bookmark_to_page_dict[next_bookmark]
+                stop_page_index = bookmark_to_page_dict[next_bookmark]
 
             extra_index += 1
 
@@ -112,8 +112,8 @@ class PDFHandler:
         subprocess.Popen(command)
 
     def extract_text(self, pdf_section: PDFSection):
-        start_page = pdf_section.start_page
-        stop_page = pdf_section.stop_page
+        start_page = pdf_section.start_index
+        stop_page = pdf_section.stop_index
         if stop_page is None:
             stop_page = start_page + 1
         parts = []
@@ -124,7 +124,7 @@ class PDFHandler:
                 parts.append(text)
 
         for page_index in range(start_page, stop_page):
-            page = self.reader.pages[page_index]
+            page = self.pdf_reader.pages[page_index]
             page.extract_text(visitor_text=visitor_body)
         text_body = "".join(parts)
 

@@ -6,3 +6,4 @@ test/
 *.txt
 __pycache__/
 *.db
+tempCodeRunnerFile.py

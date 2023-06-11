@@ -10,7 +10,6 @@ import pygetwindow as gw
 
 from audio_opener import AudioOpener
 from const import *
-from pdf2text import Pdf2Text
 from pdf_handler import PDFHandler, PDFSection
 from placeholder_entry import PlaceholderEntry
 from text2speech import Text2Speech
@@ -79,21 +78,27 @@ class PDFNavigator(tk.Frame):
             ]
             self.past_progress = self.get_saved_data()
             self.bookmark_choice = tk.StringVar()
-            self.bookmark_choice.trace("w", self._bookmark_choice_changed)
+            # self.bookmark_choice.trace("w", self._bookmark_choice_changed)
             self.past_progress_bookmark_choice = tk.StringVar()
-            self.past_progress_bookmark_choice.trace(
-                "w", self._past_progress_choice_changed
-            )
+            # self.past_progress_bookmark_choice.trace(
+            #     "w", self._past_progress_choice_changed
+            # )
 
             # Components
             self.title_1_label = tk.Label(self, text="Select Where to Start: ")
             self.bookmark_label = tk.Label(self, text="Select from bookmark")
             self.menu = tk.OptionMenu(
-                self, self.bookmark_choice, *self.bookmark_pages_list
+                self,
+                self.bookmark_choice,
+                *self.bookmark_pages_list,
+                command=self._bookmark_choice_changed,
             )
             self.previous_progress_label = tk.Label(self, text="Or get past progress")
             self.progress_menu = tk.OptionMenu(
-                self, self.past_progress_bookmark_choice, *self.past_progress
+                self,
+                self.past_progress_bookmark_choice,
+                *self.past_progress,
+                command=self._past_progress_choice_changed,
             )
             self.process_audio_button = tk.Button(
                 self, text="Read and listen from here", command=self.open_audio
@@ -190,21 +195,23 @@ class PDFNavigator(tk.Frame):
     def _input_pdf_filename(self):
         """Use tkinter filedialog to browse folder structures and"""
         filetypes = (("PDF Files", "*.pdf"),)
-        pdf_filename = filedialog.askopenfilename(filetypes=filetypes)
+        pdf_filename = filedialog.askopenfile(mode="r", filetypes=filetypes).name
         self.path_entry.delete(0, tk.END)
         self.path_entry.insert(tk.END, pdf_filename)
         return pdf_filename
 
     def _bookmark_choice_changed(self, *args):
         self.is_bookmark_chosen = True
-
+        self.bookmark_choice.set(self.bookmark_choice.get().split(" at page ")[0])
         self.pdf_section = self.pdf_handler.get_section_from_bookmark(
             bookmark=self.bookmark_choice.get()
         )
 
     def _past_progress_choice_changed(self, *args):
         self.is_bookmark_chosen = False
-
+        self.past_progress_bookmark_choice.set(
+            self.past_progress_bookmark_choice.get().split(" at page ")[0]
+        )
         self.pdf_section = self.pdf_handler.get_section_from_bookmark(
             bookmark=self.past_progress_bookmark_choice.get()
         )
@@ -229,8 +236,8 @@ class PDFNavigator(tk.Frame):
             self._open_pdf_app()
 
             # get_tts_text
-            p2t = Pdf2Text(self.chosen_pdf.get())
-            text = p2t.extract_text(start_page_index, stop_page_index)
+            # p2t =
+            text = self.pdf_handler.extract_text(self.pdf_section)
 
             # convert text to speech
             tts = Text2Speech()
@@ -252,7 +259,7 @@ class PDFNavigator(tk.Frame):
             self.generated_audio_file.set(past_data["audio_path"])
             self._open_pdf_app()
             self._open_audio_app(start_at=past_data["last_time"])
-
+        # " at page "
         self._setup_saving_components()
         if self.page_entry:
             self.page_entry.clear_entry()
@@ -366,7 +373,7 @@ class PDFNavigator(tk.Frame):
         print("data retrieved, saving...")
         if self.is_bookmark_chosen == False:
             self.cursor.execute(
-                "UPDATE past_reading_progress SET bookmark = ?, last_page_index = ?, last_time=? WHERE audio_path = ? AND pdf_path = ?",
+                "UPDATE reading_progress SET bookmark = ?, last_page_index = ?, last_time=? WHERE audio_path = ? AND pdf_path = ?",
                 (
                     bookmark,
                     stop_page_index,
@@ -380,7 +387,7 @@ class PDFNavigator(tk.Frame):
             print(label)
         elif self.is_bookmark_chosen == True:
             self.cursor.execute(
-                f"INSERT INTO past_reading_progress (bookmark, pdf_path,last_page_index,audio_path,last_time) \
+                f"INSERT INTO reading_progress (bookmark, pdf_path,last_page_index,audio_path,last_time) \
                 VALUES (?,?,?,?,?);",
                 (
                     bookmark,
@@ -402,13 +409,13 @@ class PDFNavigator(tk.Frame):
         self.title_4_label = tk.Label(self, text=label)
         self.title_4_label.grid(row=self.row_number, column=0, sticky="W", columnspan=2)
         self._increment_row_number()
-
+        self.update_choices()
         self._reconfigure_column_space()
 
     def get_saved_data(self):
         pdf_path = self.chosen_pdf.get()
         self.cursor.execute(
-            "SELECT * FROM past_reading_progress WHERE pdf_path = ?", (pdf_path,)
+            "SELECT * FROM reading_progress WHERE pdf_path = ?", (pdf_path,)
         )
         rows = self.cursor.fetchall()
         sorted_result = []
@@ -416,12 +423,14 @@ class PDFNavigator(tk.Frame):
             sorted_result.append(
                 row["bookmark"] + " at page " + str(row["last_page_index"] + 1)
             )
+        if not sorted_result:
+            sorted_result.append("No Bookmark")
         return sorted_result
 
     def load_past_data(self, past_data_bookmark):
         pdf_path = self.chosen_pdf.get()
         self.cursor.execute(
-            "SELECT * FROM past_reading_progress WHERE pdf_path = ? AND bookmark = ?",
+            "SELECT * FROM reading_progress WHERE pdf_path = ? AND bookmark = ?",
             (pdf_path, past_data_bookmark),
         )
         return self.cursor.fetchall()
@@ -448,4 +457,11 @@ if __name__ == "__main__":
 
     root.bind("<Configure>", resize_frame)
 
+    # def additional_code():
+    # nv.db.close()
+
+    # GUI setup code here
+
+    # root.after(500, additional_code)
     root.mainloop()
+    nv.db.close()
