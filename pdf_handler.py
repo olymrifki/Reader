@@ -54,12 +54,15 @@ class PDFSection:
 
 class PDFHandler:
     def __init__(self, filename) -> None:
+        self.set_filename(filename)
+        self.is_opened = False
+
+    def set_filename(self, filename):
         if filename.endswith(".pdf"):
-            self.pdf_path = filename
+            self.filename = filename
             self.pdf_reader = PdfReader(filename)
         else:
             raise ValueError("Wrong file type.")
-        self.is_opened = False
 
     def get_sorted_section_list(self):
         return [
@@ -99,14 +102,14 @@ class PDFHandler:
                 "-reuse-instance",
                 "-page",
                 str(page),
-                self.pdf_path,
+                self.filename,
             ]
         else:
             command = [
                 "sumatrapdf",
                 "-page",
                 str(page),
-                self.pdf_path,
+                self.filename,
             ]
             self.is_opened = True
         subprocess.Popen(command)
