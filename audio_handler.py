@@ -1,4 +1,3 @@
-import os
 import subprocess
 import sys
 import time
@@ -7,7 +6,6 @@ from datetime import timedelta
 
 import pygetwindow as gw
 import requests
-from requests.exceptions import HTTPError
 
 
 # import time
@@ -107,13 +105,13 @@ class AudioHandler:
         return text
 
     def _make_request(self, text):
-        url = "https://api.voicerss.org/"
+        self.url = "https://api.voicerss.org/"
         with open("../../VoiceRSS.txt") as file:
-            key_code = next(file).strip()
-        h1 = "en-us"
-        voice = "Mary"
-        params = {"key": key_code, "src": text, "hl": h1, "v": voice}
-        response = requests.post(url, data=params)
+            self.key_code = next(file).strip()
+        self.hl = "en-us"
+        self.voice = "Mary"
+        params = {"key": self.key_code, "src": text, "hl": self.hl, "v": self.voice}
+        response = requests.post(self.url, data=params)
         response.raise_for_status()
         if response.status_code == 200:
             print("Audio recieved")

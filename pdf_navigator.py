@@ -1,8 +1,6 @@
 import os
-import sqlite3
 import time
 import tkinter as tk
-import wave
 from datetime import datetime, timedelta
 from tkinter import filedialog, ttk
 
@@ -13,6 +11,8 @@ from const import *
 from db_handler import DBHandler, ReadingDataRow
 from pdf_handler import PDFHandler, PDFSection
 from placeholder_entry import PlaceholderEntry
+
+# SCREEN_WIDTH
 
 
 class PDFNavigator(tk.Frame):
@@ -178,7 +178,8 @@ class PDFNavigator(tk.Frame):
 
         if not self.is_loader_loaded:
             tk_window = gw.getWindowsWithTitle("App Window")[0]
-            tk_window.moveTo(int(SCREEN_WIDTH * 0.7), 0)
+            x_offset = -23
+            tk_window.moveTo(int(SCREEN_WIDTH * 0.7) + x_offset, 0)
 
             self.bookmark_pages_list = [
                 str(section) for section in self.pdf_handler.get_sorted_section_list()
@@ -233,6 +234,25 @@ class PDFNavigator(tk.Frame):
             self._increment_row_number()
 
             self._reconfigure_column_space()
+        else:
+            self.past_progress = self._get_saved_data()
+            self.bookmark_pages_list = [
+                str(section) for section in self.pdf_handler.get_sorted_section_list()
+            ]
+            self._update_choices(
+                menu=self.menu["menu"],
+                menu_var=self.bookmark_choice,
+                new_choices=self.bookmark_pages_list,
+                after_command=self._bookmark_choice_changed,
+            )
+            self._update_choices(
+                menu=self.progress_menu["menu"],
+                menu_var=self.past_progress_bookmark_choice,
+                new_choices=self.past_progress,
+                after_command=self._past_progress_choice_changed,
+            )
+            self.bookmark_choice.set("")
+            self.past_progress_bookmark_choice.set("")
         self.is_loader_loaded = True
 
     def _setup_saving_components(self):
@@ -281,7 +301,7 @@ class PDFNavigator(tk.Frame):
 
             # Components
             self.title_4_label = tk.Label(
-                self, text="Finish Reading? Delete a Progress: "
+                self, text="Finish Reading? Delete the Progress: "
             )
             self.delete_bookmark_label = tk.Label(self, text="Progress to delete: ")
             self.progress_menu_copy = tk.OptionMenu(
@@ -357,8 +377,13 @@ class PDFNavigator(tk.Frame):
             time.sleep(0.1)
         time.sleep(0.5)
         pdf_reader_window = gw.getWindowsWithTitle("SumatraPDF")[0]
-        pdf_reader_window.moveTo(0, 0)
-        pdf_reader_window.resizeTo(int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT)
+        x_offset = -7
+        y_offset = 0
+        y_size_offset = 6
+        pdf_reader_window.moveTo(x_offset, y_offset)
+        pdf_reader_window.resizeTo(
+            int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
+        )
 
     # refactored up to here
 
@@ -390,8 +415,9 @@ class PDFNavigator(tk.Frame):
             + ".wav"
         )
 
-    def _open_audio_app(self, start_at: TimeStamp = None):
+    def _open_audio_app(self, start_at: TimeStamp = TimeStamp(seconds=0)):
         start_at = str(start_at)
+        print(f"\n\n{start_at}\n\n")
         for sound_player_window in gw.getWindowsWithTitle("PotPlayer"):
             sound_player_window.close()
 
@@ -399,12 +425,19 @@ class PDFNavigator(tk.Frame):
             self.audio_handler.open_file_with_potplayer()
         else:
             self.audio_handler.open_file_with_potplayer(start_at)
+            print(f"\n\ndddd{start_at}\n\n")
         while not gw.getWindowsWithTitle("PotPlayer"):
             time.sleep(0.1)
         time.sleep(3)
+        x_offset = -15
+        x_size_offset = 17
         sound_player_window = gw.getWindowsWithTitle("PotPlayer")[0]
-        sound_player_window.moveTo(int(SCREEN_WIDTH * 0.7), int(SCREEN_HEIGHT * 0.7))
-        sound_player_window.resizeTo(int(SCREEN_WIDTH * 0.3), int(SCREEN_HEIGHT * 0.3))
+        sound_player_window.moveTo(
+            int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
+        )
+        sound_player_window.resizeTo(
+            int(SCREEN_WIDTH * 0.3) + x_size_offset, int(SCREEN_HEIGHT * 0.3)
+        )
 
     def _validate_time_input(self, time_input):
         time_input = TimeStamp(stamp=time_input)
@@ -469,7 +502,8 @@ class PDFNavigator(tk.Frame):
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("App Window")
-    target_width = int(SCREEN_WIDTH * 0.3)
+    x_offset = 23
+    target_width = int(SCREEN_WIDTH * 0.3) + x_offset
     target_height = int(SCREEN_HEIGHT * 0.7)
     root.geometry(f"{target_width}x{target_height}")
 

@@ -1,8 +1,5 @@
 import subprocess
-import sys
-import time
 
-import pygetwindow as gw
 from pypdf import PdfReader
 
 from const import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -146,6 +143,7 @@ class PDFHandler:
         result = {}
         for item in bookmark_list:
             if isinstance(item, list):
+                # continue
                 result.update(self._get_bookmark_to_page_dict_recursive(item))
             else:
                 page_index = self.pdf_reader.get_destination_page_number(item)
