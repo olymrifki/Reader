@@ -7,7 +7,10 @@ from tkinter import filedialog, ttk
 import pygetwindow as gw
 
 from audio_handler import AudioHandler, TimeStamp
-from const import *
+from Components.const import *
+from Components.labelled_search_input import LabelledSearchInput
+from Components.separator import Separator
+from Components.starting import StartingGui
 from db_handler import DBHandler, ReadingDataRow
 from pdf_handler import PDFHandler, PDFSection
 from placeholder_entry import PlaceholderEntry
@@ -147,30 +150,9 @@ class PDFNavigator(tk.Frame):
         """Define and place tkinter components for initial application interface."""
 
         if not self.is_initial_loaded:
-            # Components
-            self.title_0_label = tk.Label(self, text="Select PDF: ")
-            self.path_entry = tk.Entry(self)
-            self.get_path_button = tk.Button(
-                self, text="Get PDF", command=self.input_and_start_PDFreader
-            )
-            self.separator_frame0 = tk.Frame(self, height=2, bd=1, relief=tk.SUNKEN)
-            self.separator0 = ttk.Separator(self.separator_frame0, orient="horizontal")
+            self.main_gui = StartingGui(self)
+            self.main_gui.pack(fill="both", expand=1, padx=10, pady=10)
 
-            # Placements
-            self.title_0_label.grid(
-                row=self.row_number, column=0, sticky="W", columnspan=2
-            )
-            self._increment_row_number()
-            self.path_entry.grid(padx=5, row=self.row_number, column=0, sticky="WE")
-            self.get_path_button.grid(row=self.row_number, column=1, sticky="W")
-            self._increment_row_number()
-            self.separator_frame0.grid(
-                row=self.row_number, column=0, columnspan=2, sticky="EW", pady=10
-            )
-            self.separator0.pack(fill="x", expand=True)
-            self._increment_row_number()
-
-            self._reconfigure_column_space()
         self.is_initial_loaded = True
 
     def _setup_loader_components(self):
@@ -508,15 +490,16 @@ if __name__ == "__main__":
     root.geometry(f"{target_width}x{target_height}")
 
     nv = PDFNavigator(root)
-    nv.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+    nv.pack(fill="both", expand=1)
+    # nv.grid(row=0, column=0, sticky="nsew")
 
-    root.grid_rowconfigure(0, weight=1)
-    root.grid_columnconfigure(0, weight=1)
+    # root.grid_rowconfigure(0, weight=1)
+    # root.grid_columnconfigure(0, weight=1)
 
-    def resize_frame(event):
-        nv.grid_propagate(0)
+    # def resize_frame(event):
+    #     nv.grid_propagate(0)
 
-    root.bind("<Configure>", resize_frame)
+    # root.bind("<Configure>", resize_frame)
 
     # def additional_code():
     # nv.db.close()
