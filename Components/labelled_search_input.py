@@ -3,7 +3,7 @@ from tkinter import ttk
 
 
 class LabelledSearchInput(tk.Frame):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, search_fn, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.grid_columnconfigure(0, weight=2)
@@ -18,10 +18,9 @@ class LabelledSearchInput(tk.Frame):
 
         self.path_entry = tk.Entry(self)
         self.path_entry.grid(padx=5, row=1, column=0, sticky="WE")
-        self.get_path_button = tk.Button(
-            self, text="Get PDF", command=self.input_and_start_PDFreader
-        )
+        self.get_path_button = tk.Button(self, text="Get PDF", command=search_fn)
         self.get_path_button.grid(row=1, column=1, sticky="W")
 
-    def input_and_start_PDFreader():
-        return
+
+def get_labelled_search_input(search_fn):
+    return lambda root: LabelledSearchInput(search_fn, root)

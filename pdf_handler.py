@@ -2,7 +2,7 @@ import subprocess
 
 from pypdf import PdfReader
 
-from const import SCREEN_HEIGHT, SCREEN_WIDTH
+from Components.const import SCREEN_HEIGHT, SCREEN_WIDTH
 
 
 class PDFSection:

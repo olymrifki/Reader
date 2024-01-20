@@ -9,12 +9,9 @@ class StartingGui(tk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # self.configure(background="blue")
+        self.configure(background="blue")
 
-        self.row_number = 0
-        self.components = [LabelledSearchInput(self), Separator(self)]
-
-        self.place_components()
+        self.components = []
 
     def add_component(self, new_component):
         self.components.append(new_component)
