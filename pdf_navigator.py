@@ -44,14 +44,29 @@ class PDFNavigator(tk.Frame):
 
     def input_and_start_PDFreader(self):
         """Callback for Get PDF button"""
-        pdf_filename = self._input_pdf_filename()
+        filetypes = (("PDF Files", "*.pdf"),)
+        pdf_filename = filedialog.askopenfile(mode="r", filetypes=filetypes).name
+        self.search_pdf.path_entry.delete(0, tk.END)
+        self.search_pdf.path_entry.insert(tk.END, pdf_filename)
         if pdf_filename.endswith(".pdf"):
             self.pdf_filename = pdf_filename
             self.pdf_handler = PDFHandler(pdf_filename)
             self._setup_loader_components()
 
-    def open_audio(self):
-        self.audio_handler = AudioHandler(filename=self._get_audio_file_name())
+    def open_pdf_page_and_audio(self):
+        filename_without_extension = os.path.splitext(
+            os.path.basename(self.pdf_filename)
+        )[0]
+        audio_filename = (
+            self.audio_directory
+            + filename_without_extension
+            + "_"
+            + str(self.pdf_section.start_page)
+            + "-"
+            + str(self.pdf_section.stop_page)
+            + ".wav"
+        )
+        self.audio_handler = AudioHandler(filename=audio_filename)
         if self.is_bookmark_chosen == True:
             start_time = TimeStamp(seconds=0)
             #
@@ -59,24 +74,68 @@ class PDFNavigator(tk.Frame):
             self.audio_handler.convert(text)
 
         elif self.is_bookmark_chosen == False:
-            past_data = self._load_past_data(self.past_progress_bookmark_choice.get())[
-                0
-            ]
+            past_data = self.db.read_data(
+                self.db.filter_condition(
+                    bookmark=self.past_progress_bookmark_choice.get(),
+                    pdf_path=self.pdf_filename,
+                )
+            )[0]
             start_time = TimeStamp(stamp=past_data["last_time"])
             # additional
             self.pdf_section.start_index = int(past_data["last_page_index"])
             self.audio_handler.set_file(past_data["audio_path"])
 
-        self._open_pdf_app()
-        self._open_audio_app(start_at=start_time)
+        # opening pdf app
+
+        self.pdf_handler.open_pdf_with_sumatrapdf_at(section=self.pdf_section)
+
+        while not gw.getWindowsWithTitle("SumatraPDF"):
+            time.sleep(0.1)
+        time.sleep(0.5)
+        pdf_reader_window = gw.getWindowsWithTitle("SumatraPDF")[0]
+        x_offset = -7
+        y_offset = 0
+        y_size_offset = 6
+        pdf_reader_window.moveTo(x_offset, y_offset)
+        pdf_reader_window.resizeTo(
+            int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
+        )
+
+        # opening audio app
+        if not start_time:
+            start_time = TimeStamp(seconds=0)
+        start_time = str(start_time)
+        print(f"\n\n{start_time}\n\n")
+        for sound_player_window in gw.getWindowsWithTitle("PotPlayer"):
+            sound_player_window.close()
+
+        if start_time is None:
+            self.audio_handler.open_file_with_potplayer()
+        else:
+            self.audio_handler.open_file_with_potplayer(start_time)
+            print(f"\n\ndddd{start_time}\n\n")
+        while not gw.getWindowsWithTitle("PotPlayer"):
+            time.sleep(0.1)
+        time.sleep(3)
+        x_offset = -15
+        x_size_offset = 17
+        sound_player_window = gw.getWindowsWithTitle("PotPlayer")[0]
+        sound_player_window.moveTo(
+            int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
+        )
+        sound_player_window.resizeTo(
+            int(SCREEN_WIDTH * 0.3) + x_size_offset, int(SCREEN_HEIGHT * 0.3)
+        )
 
         self._setup_saving_components()
-        self.save_component.reempty_entries()
+        start_page_index = self.pdf_section.start_index
+        stop_page_index = self.pdf_section.stop_index
+        self.save_component.reempty_entries(
+            str(self.audio_handler.duration()), start_page_index, stop_page_index
+        )
 
-    def save_progress(self, page_entry, time_entry):
+    def save_progress(self, stop_page_index, stop_time):
         print("getting data")
-        stop_page_index = self._validate_page_input(page_entry)
-        stop_time = self._validate_time_input(time_entry)
         if not stop_page_index or not stop_time:
             return
 
@@ -109,20 +168,25 @@ class PDFNavigator(tk.Frame):
 
         self.main_gui.add_component(tk.Label(self.main_gui, text=label))
 
-        self.past_progress = self._get_saved_data()
+        self.past_progress = self._load_past_progress()
         self.saved_progress_menu.update_choices(new_choices=self.past_progress)
         self.delete_progress_menu.update_choices(new_choices=self.past_progress)
 
     def delete_bookmark(self):
         if self.past_progress_bookmark_choice.get() == "":
             return
-        self._delete_past_data(self.past_progress_bookmark_choice.get())
+        self.db.delete_data(
+            self.db.filter_condition(
+                bookmark=self.past_progress_bookmark_choice.get(),
+                pdf_path=self.pdf_filename,
+            )
+        )
         self.past_progress_bookmark_choice.set("")
 
         label = "Progress deleted"
         self.main_gui.add_component(tk.Label(self.main_gui, text=label))
 
-        self.past_progress = self._get_saved_data()
+        self.past_progress = self._load_past_progress()
         self.saved_progress_menu.update_choices(new_choices=self.past_progress)
         self.delete_progress_menu.update_choices(new_choices=self.past_progress)
 
@@ -137,7 +201,7 @@ class PDFNavigator(tk.Frame):
             self.bookmark_pages_list = [
                 str(section) for section in self.pdf_handler.get_sorted_section_list()
             ]
-            self.past_progress = self._get_saved_data()
+            self.past_progress = self._load_past_progress()
             self.bookmark_choice = tk.StringVar()
             self.past_progress_bookmark_choice = tk.StringVar()
 
@@ -153,7 +217,10 @@ class PDFNavigator(tk.Frame):
             )
 
             progress_loader = ProgessLoader(
-                bookmark, self.past_progress_pack, self.open_audio, self.main_gui
+                bookmark,
+                self.past_progress_pack,
+                self.open_pdf_page_and_audio,
+                self.main_gui,
             )
             self.bookmark_menu = progress_loader.bookmark_menu
             self.saved_progress_menu = progress_loader.saved_progress_menu
@@ -162,7 +229,7 @@ class PDFNavigator(tk.Frame):
             self.main_gui.add_component(Separator(self.main_gui))
 
         else:
-            self.past_progress = self._get_saved_data()
+            self.past_progress = self._load_past_progress()
             self.bookmark_pages_list = [
                 str(section) for section in self.pdf_handler.get_sorted_section_list()
             ]
@@ -180,6 +247,7 @@ class PDFNavigator(tk.Frame):
             # progress saver
 
             self.save_component = ProgessSaver(self.save_progress, self.main_gui)
+
             self.main_gui.add_component(self.save_component)
             self.main_gui.add_component(Separator(self.main_gui))
 
@@ -192,14 +260,6 @@ class PDFNavigator(tk.Frame):
             self.main_gui.add_component(Separator(self.main_gui))
 
         self.is_saving_loaded = True
-
-    def _input_pdf_filename(self):
-        """Use tkinter filedialog to browse folder structures and"""
-        filetypes = (("PDF Files", "*.pdf"),)
-        pdf_filename = filedialog.askopenfile(mode="r", filetypes=filetypes).name
-        self.search_pdf.path_entry.delete(0, tk.END)
-        self.search_pdf.path_entry.insert(tk.END, pdf_filename)
-        return pdf_filename
 
     def _bookmark_choice_changed(self, *args):
         self.is_bookmark_chosen = True
@@ -221,82 +281,7 @@ class PDFNavigator(tk.Frame):
             bookmark=self.past_progress_bookmark_choice.get()
         )
 
-    def _open_pdf_app(self):
-        self.pdf_handler.open_pdf_with_sumatrapdf_at(section=self.pdf_section)
-
-        while not gw.getWindowsWithTitle("SumatraPDF"):
-            time.sleep(0.1)
-        time.sleep(0.5)
-        pdf_reader_window = gw.getWindowsWithTitle("SumatraPDF")[0]
-        x_offset = -7
-        y_offset = 0
-        y_size_offset = 6
-        pdf_reader_window.moveTo(x_offset, y_offset)
-        pdf_reader_window.resizeTo(
-            int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
-        )
-
-    # refactored up to here
-
-    def _get_audio_file_name(self):
-        filename_without_extension = os.path.splitext(
-            os.path.basename(self.pdf_filename)
-        )[0]
-        return (
-            self.audio_directory
-            + filename_without_extension
-            + "_"
-            + str(self.pdf_section.start_page)
-            + "-"
-            + str(self.pdf_section.stop_page)
-            + ".wav"
-        )
-
-    def _open_audio_app(self, start_at: TimeStamp = TimeStamp(seconds=0)):
-        start_at = str(start_at)
-        print(f"\n\n{start_at}\n\n")
-        for sound_player_window in gw.getWindowsWithTitle("PotPlayer"):
-            sound_player_window.close()
-
-        if start_at is None:
-            self.audio_handler.open_file_with_potplayer()
-        else:
-            self.audio_handler.open_file_with_potplayer(start_at)
-            print(f"\n\ndddd{start_at}\n\n")
-        while not gw.getWindowsWithTitle("PotPlayer"):
-            time.sleep(0.1)
-        time.sleep(3)
-        x_offset = -15
-        x_size_offset = 17
-        sound_player_window = gw.getWindowsWithTitle("PotPlayer")[0]
-        sound_player_window.moveTo(
-            int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
-        )
-        sound_player_window.resizeTo(
-            int(SCREEN_WIDTH * 0.3) + x_size_offset, int(SCREEN_HEIGHT * 0.3)
-        )
-
-    def _validate_time_input(self, time_input):
-        time_input = TimeStamp(stamp=time_input)
-        if not (
-            time_input.seconds_value() > 0
-            and time_input.seconds_value()
-            < self.audio_handler.duration().seconds_value()
-        ):
-            return
-        return str(time_input)
-
-    def _validate_page_input(self, stop_page_input):
-        stop_page_index_input = int(stop_page_input) - 1
-
-        if not (
-            stop_page_index_input >= self.pdf_section.start_index
-            and stop_page_index_input < self.pdf_section.stop_index
-        ):
-            return
-        return stop_page_index_input
-
-    def _get_saved_data(self):
+    def _load_past_progress(self):
         rows = self.db.read_data(self.db.filter_condition(pdf_path=self.pdf_filename))
         sorted_result = []
         for row in sorted(rows, key=lambda n: int(n["last_page_index"])):
@@ -306,22 +291,6 @@ class PDFNavigator(tk.Frame):
         if not sorted_result:
             sorted_result.append("No Bookmark")
         return sorted_result
-
-    def _delete_past_data(self, past_data_bookmark):
-        print(f"\n\n{past_data_bookmark}\n\n")
-        return self.db.delete_data(
-            self.db.filter_condition(
-                bookmark=past_data_bookmark, pdf_path=self.pdf_filename
-            )
-        )
-
-    def _load_past_data(self, past_data_bookmark):
-        print(f"\n\n{past_data_bookmark}\n\n")
-        return self.db.read_data(
-            self.db.filter_condition(
-                bookmark=past_data_bookmark, pdf_path=self.pdf_filename
-            )
-        )
 
 
 if __name__ == "__main__":

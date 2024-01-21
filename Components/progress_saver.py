@@ -3,6 +3,8 @@ from tkinter import ttk
 
 from placeholder_entry import PlaceholderEntry
 
+from audio_handler import TimeStamp
+
 
 class ProgessSaver(tk.Frame):
     def __init__(self, save_fn, *args, **kwargs):
@@ -47,26 +49,44 @@ class ProgessSaver(tk.Frame):
         self.progress_button.grid(row=3, column=0, sticky="W", pady=3)
 
     def save_progress(self):
-        page_value = self.page_entry.get()
-        time_value = self.timestamp_entry.get()
+        stop_page_index = self._validate_page_input(self.page_entry.get())
+        stop_time = self._validate_time_input(self.timestamp_entry.get())
 
-        self.save_fn(page_value, time_value)
+        self.save_fn(stop_page_index, stop_time)
 
         if self.page_entry:
             self.page_entry.clear_entry()
         if self.timestamp_entry:
             self.timestamp_entry.clear_entry()
 
-    def reempty_entries(self):
-        start_page_index = self.pdf_section.start_index
-        stop_page_index = self.pdf_section.stop_index
+    def reempty_entries(self, duration, start_page_index, stop_page_index):
+        self.start_page_index = start_page_index
+        self.stop_page_index = stop_page_index
         if self.page_entry:
             self.page_entry.clear_entry()
             self.page_entry.placeholder_text = f"{start_page_index+1}-{stop_page_index}"
             self.page_entry.on_focus_out("_")
         if self.timestamp_entry:
             self.timestamp_entry.clear_entry()
-            self.timestamp_entry.placeholder_text = (
-                f"00:00:00-{str(self.audio_handler.duration())}"
-            )
+            self.timestamp_entry.placeholder_text = f"00:00:00-{duration}"
             self.timestamp_entry.on_focus_out("_")
+
+    def _validate_page_input(self, stop_page_input):
+        stop_page_index_input = int(stop_page_input) - 1
+
+        if not (
+            stop_page_index_input >= self.start_page_index
+            and stop_page_index_input < self.stop_page_index
+        ):
+            return
+        return stop_page_index_input
+
+    def _validate_time_input(self, time_input):
+        time_input = TimeStamp(stamp=time_input)
+        if not (
+            time_input.seconds_value() > 0
+            and time_input.seconds_value()
+            < self.audio_handler.duration().seconds_value()
+        ):
+            return
+        return str(time_input)
