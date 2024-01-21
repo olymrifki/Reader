@@ -9,12 +9,13 @@ import pygetwindow as gw
 from audio_handler import AudioHandler, TimeStamp
 from Components.const import *
 from Components.labelled_search_input import LabelledSearchInput
+from Components.progress_deleter import ProgessDeleter
 from Components.progress_loader import ProgessLoader
+from Components.progress_saver import ProgessSaver
 from Components.separator import Separator
 from Components.starting import StartingGui
 from db_handler import DBHandler, ReadingDataRow
 from pdf_handler import PDFHandler, PDFSection
-from placeholder_entry import PlaceholderEntry
 
 # SCREEN_WIDTH
 
@@ -45,6 +46,7 @@ class PDFNavigator(tk.Frame):
         """Callback for Get PDF button"""
         pdf_filename = self._input_pdf_filename()
         if pdf_filename.endswith(".pdf"):
+            self.pdf_filename = pdf_filename
             self.pdf_handler = PDFHandler(pdf_filename)
             self._setup_loader_components()
 
@@ -69,12 +71,12 @@ class PDFNavigator(tk.Frame):
         self._open_audio_app(start_at=start_time)
 
         self._setup_saving_components()
-        self._reempty_entries()
+        self.save_component.reempty_entries()
 
-    def save_progress(self):
+    def save_progress(self, page_entry, time_entry):
         print("getting data")
-        stop_page_index = self._validate_page_input(self.page_entry.get())
-        stop_time = self._validate_time_input(self.timestamp_entry.get())
+        stop_page_index = self._validate_page_input(page_entry)
+        stop_time = self._validate_time_input(time_entry)
         if not stop_page_index or not stop_time:
             return
 
@@ -82,7 +84,7 @@ class PDFNavigator(tk.Frame):
         if self.is_bookmark_chosen == True:
             data = ReadingDataRow(
                 self.bookmark_choice.get(),
-                self.pdf_handler.filename,
+                self.pdf_filename,
                 stop_page_index,
                 self.audio_handler.filename,
                 stop_time,
@@ -96,7 +98,7 @@ class PDFNavigator(tk.Frame):
         elif self.is_bookmark_chosen == False:
             data = ReadingDataRow(
                 self.past_progress_bookmark_choice.get(),
-                self.pdf_handler.filename,
+                self.pdf_filename,
                 stop_page_index,
                 self.audio_handler.filename,
                 stop_time,
@@ -105,54 +107,24 @@ class PDFNavigator(tk.Frame):
             label = "Data updated"
             print(label)
 
-        if self.page_entry:
-            self.page_entry.clear_entry()
-        if self.timestamp_entry:
-            self.timestamp_entry.clear_entry()
-        self.title_5_label = tk.Label(self, text=label)
-        self.title_5_label.grid(row=self.row_number, column=0, sticky="W", columnspan=2)
-        self._increment_row_number()
+        self.main_gui.add_component(tk.Label(self.main_gui, text=label))
+
         self.past_progress = self._get_saved_data()
-        self._update_choices(
-            menu=self.progress_menu["menu"],
-            menu_var=self.past_progress_bookmark_choice,
-            new_choices=self.past_progress,
-            after_command=self._past_progress_choice_changed,
-        )
-        self._update_choices(
-            menu=self.progress_menu_copy["menu"],
-            menu_var=self.past_progress_bookmark_choice,
-            new_choices=self.past_progress,
-            after_command=self._past_progress_choice_changed,
-        )
-        self._reconfigure_column_space()
+        self.saved_progress_menu.update_choices(new_choices=self.past_progress)
+        self.delete_progress_menu.update_choices(new_choices=self.past_progress)
 
     def delete_bookmark(self):
         if self.past_progress_bookmark_choice.get() == "":
             return
         self._delete_past_data(self.past_progress_bookmark_choice.get())
         self.past_progress_bookmark_choice.set("")
-        label = "Progress deleted"
-        self.title_5_label = tk.Label(self, text=label)
-        self.title_5_label.grid(row=self.row_number, column=0, sticky="W", columnspan=2)
-        self._increment_row_number()
-        self.past_progress = self._get_saved_data()
-        self._update_choices(
-            menu=self.progress_menu["menu"],
-            menu_var=self.past_progress_bookmark_choice,
-            new_choices=self.past_progress,
-            after_command=self._past_progress_choice_changed,
-        )
-        self._update_choices(
-            menu=self.progress_menu_copy["menu"],
-            menu_var=self.past_progress_bookmark_choice,
-            new_choices=self.past_progress,
-            after_command=self._past_progress_choice_changed,
-        )
-        self._reconfigure_column_space()
 
-    def _increment_row_number(self):
-        self.row_number += 1
+        label = "Progress deleted"
+        self.main_gui.add_component(tk.Label(self.main_gui, text=label))
+
+        self.past_progress = self._get_saved_data()
+        self.saved_progress_menu.update_choices(new_choices=self.past_progress)
+        self.delete_progress_menu.update_choices(new_choices=self.past_progress)
 
     def _setup_loader_components(self):
         """Define and place tkinter components for book section loader application interface."""
@@ -174,15 +146,19 @@ class PDFNavigator(tk.Frame):
                 self.bookmark_pages_list,
                 self._bookmark_choice_changed,
             )
-            past_progress = (
+            self.past_progress_pack = (
                 self.past_progress_bookmark_choice,
                 self.past_progress,
                 self._past_progress_choice_changed,
             )
-            # Components
-            self.main_gui.add_component(
-                ProgessLoader(bookmark, past_progress, self.open_audio, self.main_gui)
+
+            progress_loader = ProgessLoader(
+                bookmark, self.past_progress_pack, self.open_audio, self.main_gui
             )
+            self.bookmark_menu = progress_loader.bookmark_menu
+            self.saved_progress_menu = progress_loader.saved_progress_menu
+            # Components
+            self.main_gui.add_component(progress_loader)
             self.main_gui.add_component(Separator(self.main_gui))
 
         else:
@@ -190,18 +166,9 @@ class PDFNavigator(tk.Frame):
             self.bookmark_pages_list = [
                 str(section) for section in self.pdf_handler.get_sorted_section_list()
             ]
-            self._update_choices(
-                menu=self.menu["menu"],
-                menu_var=self.bookmark_choice,
-                new_choices=self.bookmark_pages_list,
-                after_command=self._bookmark_choice_changed,
-            )
-            self._update_choices(
-                menu=self.progress_menu["menu"],
-                menu_var=self.past_progress_bookmark_choice,
-                new_choices=self.past_progress,
-                after_command=self._past_progress_choice_changed,
-            )
+            self.bookmark_menu.update_choices(new_choices=self.bookmark_pages_list)
+            self.saved_progress_menu.update_choices(new_choices=self.past_progress)
+
             self.bookmark_choice.set("")
             self.past_progress_bookmark_choice.set("")
         self.is_loader_loaded = True
@@ -210,84 +177,21 @@ class PDFNavigator(tk.Frame):
         """Define and place tkinter components for saving progress loader application interface."""
 
         if not self.is_saving_loaded:
-            page_entry_placeholder = ""
-            timestamp_entry_placeholder = ""
+            # progress saver
 
-            # Components
-            self.title_3_label = tk.Label(self.main_gui, text="Save Progress: ")
-            self.save_page_label = tk.Label(self.main_gui, text="Page to save: ")
-            self.page_entry = PlaceholderEntry(
-                self.main_gui, placeholder_text=page_entry_placeholder
-            )
-            self.save_timestamp_label = tk.Label(
-                self.main_gui, text="Timestamp to save: "
-            )
-            self.timestamp_entry = PlaceholderEntry(
-                self.main_gui, placeholder_text=timestamp_entry_placeholder
-            )
-            self.save_progress_button = tk.Button(
-                self.main_gui, text="Save this progress", command=self.save_progress
-            )
-            self.separator_frame3 = tk.Frame(
-                self.main_gui, height=2, bd=1, relief=tk.SUNKEN
-            )
-            self.separator3 = ttk.Separator(self.separator_frame3, orient="horizontal")
+            self.save_component = ProgessSaver(self.save_progress, self.main_gui)
+            self.main_gui.add_component(self.save_component)
+            self.main_gui.add_component(Separator(self.main_gui))
 
-            # Placements
-            self.title_3_label.grid(
-                row=self.row_number, column=0, sticky="W", columnspan=2
+            # progress deleter
+            progress_deleter = ProgessDeleter(
+                self.delete_bookmark, self.past_progress_pack, self.main_gui
             )
-            self._increment_row_number()
-            self.save_page_label.grid(column=0, row=self.row_number, sticky="W")
-            self.page_entry.grid(column=1, row=self.row_number, sticky="W")
-            self._increment_row_number()
-            self.save_timestamp_label.grid(column=0, row=self.row_number, sticky="W")
-            self.timestamp_entry.grid(column=1, row=self.row_number, sticky="W")
-            self._increment_row_number()
-            self.save_progress_button.grid(
-                padx=5, column=0, row=self.row_number, columnspan=2, sticky="W"
-            )
-            self._increment_row_number()
-            self.separator_frame3.grid(
-                row=self.row_number, column=0, columnspan=2, sticky="EW", pady=10
-            )
-            self.separator3.pack(fill="x", expand=True)
-            self._increment_row_number()
-
-            # Components
-            self.title_4_label = tk.Label(
-                self, text="Finish Reading? Delete the Progress: "
-            )
-            self.delete_bookmark_label = tk.Label(self, text="Progress to delete: ")
-            self.progress_menu_copy = tk.OptionMenu(
-                self,
-                self.past_progress_bookmark_choice,
-                *self.past_progress,
-                command=self._past_progress_choice_changed,
-            )
-            self.delete_a_bookmark_button = tk.Button(
-                self, text="Delete bookmark", command=self.delete_bookmark
-            )
-
-            # Placements
-            self.title_4_label.grid(
-                row=self.row_number, column=0, sticky="W", columnspan=2
-            )
-            self._increment_row_number()
-            self.delete_bookmark_label.grid(column=0, row=self.row_number, sticky="W")
-            self.progress_menu_copy.grid(column=1, row=self.row_number, sticky="W")
-            self._increment_row_number()
-            self.delete_a_bookmark_button.grid(
-                padx=5, column=0, row=self.row_number, columnspan=2, sticky="W"
-            )
-
+            self.delete_progress_menu = progress_deleter.delete_progress_menu
+            self.main_gui.add_component(progress_deleter)
             self.main_gui.add_component(Separator(self.main_gui))
 
         self.is_saving_loaded = True
-
-    def _reconfigure_column_space(self):
-        for col in range(self.grid_size()[0]):
-            self.grid_columnconfigure(col, weight=1)
 
     def _input_pdf_filename(self):
         """Use tkinter filedialog to browse folder structures and"""
@@ -334,23 +238,9 @@ class PDFNavigator(tk.Frame):
 
     # refactored up to here
 
-    def _reempty_entries(self):
-        start_page_index = self.pdf_section.start_index
-        stop_page_index = self.pdf_section.stop_index
-        if self.page_entry:
-            self.page_entry.clear_entry()
-            self.page_entry.placeholder_text = f"{start_page_index+1}-{stop_page_index}"
-            self.page_entry.on_focus_out("_")
-        if self.timestamp_entry:
-            self.timestamp_entry.clear_entry()
-            self.timestamp_entry.placeholder_text = (
-                f"00:00:00-{str(self.audio_handler.duration())}"
-            )
-            self.timestamp_entry.on_focus_out("_")
-
     def _get_audio_file_name(self):
         filename_without_extension = os.path.splitext(
-            os.path.basename(self.pdf_handler.filename)
+            os.path.basename(self.pdf_filename)
         )[0]
         return (
             self.audio_directory
@@ -406,20 +296,8 @@ class PDFNavigator(tk.Frame):
             return
         return stop_page_index_input
 
-    def _update_choices(self, menu, menu_var, new_choices, after_command):
-        menu.delete(0, "end")
-        for choice in new_choices:
-
-            def func(value=choice):
-                menu_var.set(value)
-                after_command()
-
-            menu.add_command(label=choice, command=func)
-
     def _get_saved_data(self):
-        rows = self.db.read_data(
-            self.db.filter_condition(pdf_path=self.pdf_handler.filename)
-        )
+        rows = self.db.read_data(self.db.filter_condition(pdf_path=self.pdf_filename))
         sorted_result = []
         for row in sorted(rows, key=lambda n: int(n["last_page_index"])):
             sorted_result.append(
@@ -433,7 +311,7 @@ class PDFNavigator(tk.Frame):
         print(f"\n\n{past_data_bookmark}\n\n")
         return self.db.delete_data(
             self.db.filter_condition(
-                bookmark=past_data_bookmark, pdf_path=self.pdf_handler.filename
+                bookmark=past_data_bookmark, pdf_path=self.pdf_filename
             )
         )
 
@@ -441,7 +319,7 @@ class PDFNavigator(tk.Frame):
         print(f"\n\n{past_data_bookmark}\n\n")
         return self.db.read_data(
             self.db.filter_condition(
-                bookmark=past_data_bookmark, pdf_path=self.pdf_handler.filename
+                bookmark=past_data_bookmark, pdf_path=self.pdf_filename
             )
         )
 
