@@ -1,10 +1,11 @@
+import asyncio
 import subprocess
 import sys
 import time
 import wave
 from datetime import timedelta
 
-import pygetwindow as gw
+import pygetwindow
 import requests
 
 
@@ -72,15 +73,46 @@ class AudioHandler:
 
         return TimeStamp(seconds=duration_seconds)
 
-    def open_file_with_potplayer(self, start_time: TimeStamp):
-        subprocess.Popen(
-            [
-                "PotPlayerMini",
-                self.filename,
-                "/new",
-                f"/seek={str(start_time)}",
-            ]
+    async def wait_for_window(
+        self, title, check_function, timeout=10, polling_interval=0.5
+    ):
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            if check_function(title):
+                return True
+            await asyncio.sleep(polling_interval)
+        return False
+
+    def is_window_open(self, title):
+        return bool(pygetwindow.getWindowsWithTitle(title))
+
+    # Default check function for window closed
+    def is_window_closed(self, title):
+        return not bool(pygetwindow.getWindowsWithTitle(title))
+
+    async def open_audio_file(self, start_time: TimeStamp):
+        command = [
+            "vlc",
+            f'"{self.filename}"'.replace("/", "\\"),
+            "--start-time",
+            str(int(start_time.seconds_value())),
+        ]
+
+        command = " ".join(command)
+
+        for sound_player_window in pygetwindow.getWindowsWithTitle("VLC media player"):
+            sound_player_window.close()
+        await self.wait_for_window("VLC media player", self.is_window_closed)
+
+        await asyncio.create_subprocess_shell(command)
+
+        window_open = await self.wait_for_window(
+            "VLC media player", self.is_window_open
         )
+        if window_open:
+            print(f"Window for '{command}' is open.")
+        else:
+            raise TimeoutError("Potplayer takes too long to open")
 
     def convert(self, text):
         text = self._check_text(text)
@@ -138,15 +170,15 @@ if __name__ == "__main__":
     filename = "./audio_file.wav"
     popener = AudioHandler(filename)
 
-    popener.open_file_with_potplayer()
+    popener.open_audio_file()
     # Get the primary screen
-    # screen = gw.getScreenInfo()[0]
+    # screen = pygetwindow.getScreenInfo()[0]
     time.sleep(2)
     # Get the screen size
     screen_width = 1280
     screen_height = 720
-    # print(len(gw.getWindowsWithTitle("PotPlayer")))
-    potplayer_window = gw.getWindowsWithTitle("PotPlayer")[0]
+    # print(len(pygetwindow.getWindowsWithTitle("VLC media player")))
+    potplayer_window = pygetwindow.getWindowsWithTitle("VLC media player")[0]
     # potplayer_window.waitForWindow()
     potplayer_window.resizeTo(int(screen_width * 0.8), int(screen_height * 0.25))
 

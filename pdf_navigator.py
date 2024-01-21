@@ -1,4 +1,6 @@
+import asyncio
 import os
+import threading
 import time
 import tkinter as tk
 from datetime import datetime, timedelta
@@ -54,6 +56,12 @@ class PDFNavigator(tk.Frame):
             self._setup_loader_components()
 
     def open_pdf_page_and_audio(self):
+        async def asyncfunc():
+            await self._open_pdf_page_and_audio()
+
+        asyncio.run(asyncfunc())
+
+    async def _open_pdf_page_and_audio(self):
         filename_without_extension = os.path.splitext(
             os.path.basename(self.pdf_filename)
         )[0]
@@ -87,11 +95,15 @@ class PDFNavigator(tk.Frame):
 
         # opening pdf app
 
-        self.pdf_handler.open_pdf_with_sumatrapdf_at(section=self.pdf_section)
+        # opening audio app
+        if not start_time:
+            start_time = TimeStamp(seconds=0)
 
-        while not gw.getWindowsWithTitle("SumatraPDF"):
-            time.sleep(0.1)
-        time.sleep(0.5)
+        await asyncio.gather(
+            self.audio_handler.open_audio_file(start_time),
+            self.pdf_handler.open_pdf_with_sumatrapdf_at(section=self.pdf_section),
+        )
+
         pdf_reader_window = gw.getWindowsWithTitle("SumatraPDF")[0]
         x_offset = -7
         y_offset = 0
@@ -101,25 +113,9 @@ class PDFNavigator(tk.Frame):
             int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
         )
 
-        # opening audio app
-        if not start_time:
-            start_time = TimeStamp(seconds=0)
-        start_time = str(start_time)
-        print(f"\n\n{start_time}\n\n")
-        for sound_player_window in gw.getWindowsWithTitle("PotPlayer"):
-            sound_player_window.close()
-
-        if start_time is None:
-            self.audio_handler.open_file_with_potplayer()
-        else:
-            self.audio_handler.open_file_with_potplayer(start_time)
-            print(f"\n\ndddd{start_time}\n\n")
-        while not gw.getWindowsWithTitle("PotPlayer"):
-            time.sleep(0.1)
-        time.sleep(3)
+        sound_player_window = gw.getWindowsWithTitle("VLC media player")[0]
         x_offset = -15
         x_size_offset = 17
-        sound_player_window = gw.getWindowsWithTitle("PotPlayer")[0]
         sound_player_window.moveTo(
             int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
         )

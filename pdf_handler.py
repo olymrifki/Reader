@@ -1,8 +1,11 @@
-import subprocess
+import asyncio
 
+import pygetwindow
 from pypdf import PdfReader
 
 from Components.const import SCREEN_HEIGHT, SCREEN_WIDTH
+
+# from asyncio.subprocess import PIPE
 
 
 class PDFSection:
@@ -91,7 +94,24 @@ class PDFHandler:
             bookmark=bookmark, start_stop_index=(start_page_index, stop_page_index)
         )
 
-    def open_pdf_with_sumatrapdf_at(self, section: PDFSection):
+    async def wait_for_window(
+        self, title, check_function, timeout=10, polling_interval=0.5
+    ):
+        start_time = asyncio.get_event_loop().time()
+        while asyncio.get_event_loop().time() - start_time < timeout:
+            if check_function(title):
+                return True
+            await asyncio.sleep(polling_interval)
+        return False
+
+    def is_window_open(self, title):
+        return bool(pygetwindow.getWindowsWithTitle(title))
+
+    # Default check function for window closed
+    def is_window_closed(self, title):
+        return not bool(pygetwindow.getWindowsWithTitle(title))
+
+    async def open_pdf_with_sumatrapdf_at(self, section: PDFSection):
         page = section.start_page
         if self.is_opened:
             command = [
@@ -109,7 +129,18 @@ class PDFHandler:
                 self.filename,
             ]
             self.is_opened = True
-        subprocess.Popen(command)
+
+        await asyncio.create_subprocess_exec(*command)
+        window_open = await self.wait_for_window("SumatraPDF", self.is_window_open)
+        if window_open:
+            print(f"Window for '{command}' is open.")
+        else:
+            raise TimeoutError("SumatraPDF takes too long to open")
+
+        # process = await asyncio.create_subprocess_exec(
+        #     *command, stdout=PIPE, stderr=PIPE
+        # )
+        # await process.communicate()
 
     def extract_text(self, pdf_section: PDFSection):
         start_page = pdf_section.start_index
@@ -161,7 +192,7 @@ if __name__ == "__main__":
     file_path = "../../../Desktop/Game Programming Patterns.pdf"
     popener = PDFHandler(file_path)
 
-    print(popener.get_sorted_bookmark_list())
+    print(popener._get_sorted_bookmark_list())
 
     # popener.open_pdf_with_sumatrapdf(100)
     # open_pdf_with_default_app(file_path)
