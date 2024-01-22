@@ -8,7 +8,6 @@ from tkinter import filedialog, ttk
 
 import pygetwindow as gw
 
-from audio_handler import AudioHandler, TimeStamp
 from Components.const import *
 from Components.labelled_search_input import LabelledSearchInput
 from Components.progress_deleter import ProgessDeleter
@@ -16,8 +15,9 @@ from Components.progress_loader import ProgessLoader
 from Components.progress_saver import ProgessSaver
 from Components.separator import Separator
 from Components.starting import StartingGui
-from db_handler import DBHandler, ReadingDataRow
-from pdf_handler import PDFHandler, PDFSection
+from ObjectHandlers.audio_handler import AudioHandler, TimeStamp
+from ObjectHandlers.db_handler import DBHandler, ReadingDataRow
+from ObjectHandlers.pdf_handler import PDFHandler, PDFSection
 
 # SCREEN_WIDTH
 

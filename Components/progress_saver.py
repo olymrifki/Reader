@@ -3,7 +3,7 @@ from tkinter import ttk
 
 from placeholder_entry import PlaceholderEntry
 
-from audio_handler import TimeStamp
+from ObjectHandlers.audio_handler import TimeStamp
 
 
 class ProgessSaver(tk.Frame):

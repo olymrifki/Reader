@@ -3,7 +3,7 @@ from unittest import mock
 
 import pytest
 
-from audio_handler import AudioHandler, TimeStamp
+from ObjectHandlers.audio_handler import AudioHandler, TimeStamp
 
 
 def test_audio_opener_that_accept_non_audio_file_extension_raises_ValueError():
@@ -13,8 +13,8 @@ def test_audio_opener_that_accept_non_audio_file_extension_raises_ValueError():
         AudioHandler("dwad.txt")
 
 
-@mock.patch("audio_handler.asyncio.create_subprocess_shell")
-@mock.patch("pdf_handler.pygetwindow.getWindowsWithTitle")
+@mock.patch("ObjectHandlers.audio_handler.asyncio.create_subprocess_shell")
+@mock.patch("ObjectHandlers.audio_handler.pygetwindow.getWindowsWithTitle")
 @mock.patch("asyncio.sleep")
 def test_first_time_opening_audio(mock_sleep, mock_get_windows, mock_call):
     # Arange

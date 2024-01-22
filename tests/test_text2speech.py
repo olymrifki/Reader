@@ -1,3 +1,4 @@
+import sys
 import time
 import wave
 from unittest import mock
@@ -5,7 +6,8 @@ from unittest import mock
 import pytest
 from requests.exceptions import HTTPError
 
-from audio_handler import AudioHandler
+sys.path.append("..")
+from ObjectHandlers.audio_handler import AudioHandler
 
 
 def test_make_request_success():
