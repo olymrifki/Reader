@@ -1,3 +1,4 @@
+import asyncio
 from unittest import mock
 
 import pytest
@@ -12,21 +13,31 @@ def test_audio_opener_that_accept_non_audio_file_extension_raises_ValueError():
         AudioHandler("dwad.txt")
 
 
-@mock.patch("audio_handler.subprocess.Popen")
-def test_first_time_opening_audio(mock_Popen):
+@mock.patch("audio_handler.asyncio.create_subprocess_shell")
+@mock.patch("pdf_handler.pygetwindow.getWindowsWithTitle")
+@mock.patch("asyncio.sleep")
+def test_first_time_opening_audio(mock_sleep, mock_get_windows, mock_call):
     # Arange
+    mock_get_windows.return_value = [mock.MagicMock()]
+
+    async def async_mock(*args, **kwargs):
+        return True
+
     audio_opener = AudioHandler("test.wav")
     timestamp = TimeStamp(stamp="00:40:00")
 
-    # Acv
-    audio_opener.open_file_with_potplayer(timestamp)
+    with mock.patch.object(AudioHandler, "wait_for_window", async_mock):
+        # Act
+        asyncio.run(audio_opener.open_audio_file(timestamp))
 
-    # Assert
-    mock_Popen.assert_called_once_with(
-        [
-            "PotPlayerMini",
-            "test.wav",
-            "/new",
-            "/seek=00:40:00",
-        ]
-    )
+        # Assert
+        mock_call.assert_called_once_with(
+            " ".join(
+                [
+                    "vlc",
+                    '"test.wav"',
+                    "--start-time",
+                    str(40 * 60),
+                ]
+            )
+        )
