@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
 
 from list_selector import ListSelector
 

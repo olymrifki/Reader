@@ -32,7 +32,7 @@ class DBHandler:
             conditions.append(f"{key} = ?")
             values.append(value)
         query += " AND ".join(conditions)
-        # print(f"\n\n{query}\n{values}\n\n")
+        # # print(f"\n\n{query}\n{values}\n\n")
         self.cursor.execute(query, values)
         return self.cursor.fetchall()
 

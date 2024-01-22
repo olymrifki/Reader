@@ -1,7 +1,5 @@
 import asyncio
-import subprocess
 import sys
-import time
 import wave
 from datetime import timedelta
 
@@ -111,11 +109,10 @@ class AudioHandler:
         window_open = await self.wait_for_window(
             "VLC media player", self.is_window_open
         )
-        if window_open:
-            print(f"Window for '{command}' is open.")
-        else:
+        if not window_open:
             raise TimeoutError("Potplayer takes too long to open")
 
+        # print(f"Window for '{command}' is open.")
         # adjust window
         sound_player_window = pygetwindow.getWindowsWithTitle("VLC media player")[0]
         x_offset = -15
@@ -144,7 +141,7 @@ class AudioHandler:
         text = text.encode("utf-8").decode("utf-8")
         text = text.replace("\n", " ")
 
-        # print(f"Size of text: {sys.getsizeof(text)}")
+        # # print(f"Size of text: {sys.getsizeof(text)}")
         if sys.getsizeof(text) > 98_000:
             raise MemoryError("Text size exceeds the maximum allowed size")
         return text
@@ -159,40 +156,5 @@ class AudioHandler:
         response = requests.post(self.url, data=params)
         response.raise_for_status()
         if response.status_code == 200:
-            print("Audio recieved")
             audio_content = response.content
             return audio_content
-
-
-if __name__ == "__main__":
-    tts = AudioHandler()
-    filename = "./extracted_text.txt"
-    with open(filename, "r", encoding="utf-8") as file:
-        text_data = file.read()
-    tts.convert(text_data)
-
-    # output_file = "extracted_text.txt"
-    # with open(output_file, "w", encoding="utf-8") as file:
-    #     file.write(text)
-
-    # time.sleep(2)
-    # with open(output_file, "r", encoding="utf-8") as file:
-    #     text = file.read()
-
-    # if __name__ == "__main__":
-    filename = "./audio_file.wav"
-    popener = AudioHandler(filename)
-
-    popener.open_audio_file()
-    # Get the primary screen
-    # screen = pygetwindow.getScreenInfo()[0]
-    time.sleep(2)
-    # Get the screen size
-    screen_width = 1280
-    screen_height = 720
-    # print(len(pygetwindow.getWindowsWithTitle("VLC media player")))
-    potplayer_window = pygetwindow.getWindowsWithTitle("VLC media player")[0]
-    # potplayer_window.waitForWindow()
-    potplayer_window.resizeTo(int(screen_width * 0.8), int(screen_height * 0.25))
-
-    potplayer_window.moveTo(-300, 200)

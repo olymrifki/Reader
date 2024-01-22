@@ -1,7 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
 
-from labelled_search_input import LabelledSearchInput
 from separator import Separator
 
 
@@ -9,7 +7,7 @@ class StartingGui(tk.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.configure(background="blue")
+        # self.configure(background="blue")
 
         self.components = []
 

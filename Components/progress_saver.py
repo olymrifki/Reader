@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
 
 from placeholder_entry import PlaceholderEntry
 
@@ -62,6 +61,7 @@ class ProgessSaver(tk.Frame):
     def reempty_entries(self, duration, start_page_index, stop_page_index):
         self.start_page_index = start_page_index
         self.stop_page_index = stop_page_index
+        self.duration = duration
         if self.page_entry:
             self.page_entry.clear_entry()
             self.page_entry.placeholder_text = f"{start_page_index+1}-{stop_page_index}"
@@ -83,10 +83,10 @@ class ProgessSaver(tk.Frame):
 
     def _validate_time_input(self, time_input):
         time_input = TimeStamp(stamp=time_input)
+        max_time = TimeStamp(stamp=self.duration)
         if not (
             time_input.seconds_value() > 0
-            and time_input.seconds_value()
-            < self.audio_handler.duration().seconds_value()
+            and time_input.seconds_value() < max_time.seconds_value()
         ):
             return
         return str(time_input)

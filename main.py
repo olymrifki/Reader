@@ -1,10 +1,7 @@
 import asyncio
 import os
-import threading
-import time
 import tkinter as tk
-from datetime import datetime, timedelta
-from tkinter import filedialog, ttk
+from tkinter import filedialog
 
 import pygetwindow as gw
 
@@ -17,9 +14,7 @@ from Components.separator import Separator
 from Components.starting import StartingGui
 from ObjectHandlers.audio_handler import AudioHandler, TimeStamp
 from ObjectHandlers.db_handler import DBHandler, ReadingDataRow
-from ObjectHandlers.pdf_handler import PDFHandler, PDFSection
-
-# SCREEN_WIDTH
+from ObjectHandlers.pdf_handler import PDFHandler
 
 
 class PDFNavigator(tk.Frame):
@@ -29,7 +24,7 @@ class PDFNavigator(tk.Frame):
 
         self.is_bookmark_chosen = False
 
-        self.configure(background="black")
+        # self.configure(background="black")
         self.is_loader_loaded = False
         self.is_saving_loaded = False
         self.row_number = 0
@@ -134,7 +129,7 @@ class PDFNavigator(tk.Frame):
             stop_time,
         )
         db_function(data)
-        print(label)
+        # print(label)
 
         self.main_gui.add_component(tk.Label(self.main_gui, text=label))
 
@@ -163,7 +158,7 @@ class PDFNavigator(tk.Frame):
     def _setup_loader_components(self):
         """Define and place tkinter components for book section loader application interface."""
 
-        tk_window = gw.getWindowsWithTitle("App Window")[0]
+        tk_window = gw.getWindowsWithTitle("PDF to Audio App")[0]
         x_offset = -23
         tk_window.moveTo(int(SCREEN_WIDTH * 0.7) + x_offset, 0)
 
@@ -210,7 +205,9 @@ class PDFNavigator(tk.Frame):
 
     def _setup_saving_components(self):
         """Define and place tkinter components for saving progress loader application interface."""
-
+        if self.is_saving_loaded:
+            return
+        self.is_saving_loaded = True
         # progress saver
 
         self.save_component = ProgessSaver(self.save_progress, self.main_gui)
@@ -230,7 +227,7 @@ class PDFNavigator(tk.Frame):
         self.is_bookmark_chosen = True
         self.past_progress_bookmark_choice.set("")
         self.bookmark_choice.set(self.bookmark_choice.get().split(" at page ")[0])
-        print(f"\n\n{self.bookmark_choice.get()}\n\n")
+        # print(f"\n\n{self.bookmark_choice.get()}\n\n")
         self.pdf_section = self.pdf_handler.get_section_from_bookmark(
             bookmark=self.bookmark_choice.get()
         )
@@ -241,7 +238,7 @@ class PDFNavigator(tk.Frame):
         self.past_progress_bookmark_choice.set(
             self.past_progress_bookmark_choice.get().split(" at page ")[0]
         )
-        print(f"\n\n{self.past_progress_bookmark_choice.get()}\n\n")
+        # print(f"\n\n{self.past_progress_bookmark_choice.get()}\n\n")
         self.pdf_section = self.pdf_handler.get_section_from_bookmark(
             bookmark=self.past_progress_bookmark_choice.get()
         )

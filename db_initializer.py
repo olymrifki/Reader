@@ -1,7 +1,7 @@
 import sqlite3
 
 conn = sqlite3.connect("reading_data.db")
-print("Opened database successfully")
+# print("Opened database successfully")
 
 # conn.execute(
 #     """CREATE TABLE reading_progress
@@ -28,5 +28,5 @@ conn.execute(
 
 
 conn.commit()
-print("Records created successfully")
+# print("Records created successfully")
 conn.close()

@@ -5,8 +5,6 @@ from pypdf import PdfReader
 
 from Components.const import *
 
-# from asyncio.subprocess import PIPE
-
 
 class PDFSection:
     def __init__(
@@ -132,11 +130,10 @@ class PDFHandler:
 
         await asyncio.create_subprocess_exec(*command)
         window_open = await self.wait_for_window("SumatraPDF", self.is_window_open)
-        if window_open:
-            print(f"Window for '{command}' is open.")
-        else:
+        if not window_open:
             raise TimeoutError("SumatraPDF takes too long to open")
 
+        # print(f"Window for '{command}' is open.")
         # adjust window
         pdf_reader_window = pygetwindow.getWindowsWithTitle("SumatraPDF")[0]
         x_offset = -7
@@ -191,24 +188,3 @@ class PDFHandler:
 
     def _get_bookmark_to_page_dict(self):
         return self._get_bookmark_to_page_dict_recursive(self.pdf_reader.outline)
-
-
-if __name__ == "__main__":
-    file_path = "../../../Desktop/Game Programming Patterns.pdf"
-    popener = PDFHandler(file_path)
-
-    print(popener._get_sorted_bookmark_list())
-
-    # popener.open_pdf_with_sumatrapdf(100)
-    # open_pdf_with_default_app(file_path)
-    # popener.open_pdf_with_sumatrapdf(20)
-
-    # p2t = Pdf2Text(file_path=file_path)
-
-    # text_body = pop.extract_text(116, 132)
-
-    # print(sys.getsizeof(text_body))
-
-    # output_file = "extracted_text.txt"
-    # with open(output_file, "w", encoding="utf-8") as file:
-    #     file.write(text_body)
