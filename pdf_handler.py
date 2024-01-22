@@ -3,7 +3,7 @@ import asyncio
 import pygetwindow
 from pypdf import PdfReader
 
-from Components.const import SCREEN_HEIGHT, SCREEN_WIDTH
+from Components.const import *
 
 # from asyncio.subprocess import PIPE
 
@@ -111,7 +111,7 @@ class PDFHandler:
     def is_window_closed(self, title):
         return not bool(pygetwindow.getWindowsWithTitle(title))
 
-    async def open_pdf_with_sumatrapdf_at(self, section: PDFSection):
+    async def open_pdf_at(self, section: PDFSection):
         page = section.start_page
         if self.is_opened:
             command = [
@@ -137,10 +137,15 @@ class PDFHandler:
         else:
             raise TimeoutError("SumatraPDF takes too long to open")
 
-        # process = await asyncio.create_subprocess_exec(
-        #     *command, stdout=PIPE, stderr=PIPE
-        # )
-        # await process.communicate()
+        # adjust window
+        pdf_reader_window = pygetwindow.getWindowsWithTitle("SumatraPDF")[0]
+        x_offset = -7
+        y_offset = 0
+        y_size_offset = 6
+        pdf_reader_window.moveTo(x_offset, y_offset)
+        pdf_reader_window.resizeTo(
+            int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
+        )
 
     def extract_text(self, pdf_section: PDFSection):
         start_page = pdf_section.start_index

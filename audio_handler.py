@@ -8,6 +8,8 @@ from datetime import timedelta
 import pygetwindow
 import requests
 
+from Components.const import *
+
 
 # import time
 class TimeStamp:
@@ -113,6 +115,17 @@ class AudioHandler:
             print(f"Window for '{command}' is open.")
         else:
             raise TimeoutError("Potplayer takes too long to open")
+
+        # adjust window
+        sound_player_window = pygetwindow.getWindowsWithTitle("VLC media player")[0]
+        x_offset = -15
+        x_size_offset = 17
+        sound_player_window.moveTo(
+            int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
+        )
+        sound_player_window.resizeTo(
+            int(SCREEN_WIDTH * 0.3) + x_size_offset, int(SCREEN_HEIGHT * 0.3)
+        )
 
     def convert(self, text):
         text = self._check_text(text)

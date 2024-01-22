@@ -53,7 +53,12 @@ class PDFNavigator(tk.Frame):
         if pdf_filename.endswith(".pdf"):
             self.pdf_filename = pdf_filename
             self.pdf_handler = PDFHandler(pdf_filename)
-            self._setup_loader_components()
+
+            if not self.is_loader_loaded:
+                self._setup_loader_components()
+                self.is_loader_loaded = True
+            else:
+                self._reload_loader_components()
 
     def open_pdf_page_and_audio(self):
         async def asyncfunc():
@@ -89,38 +94,12 @@ class PDFNavigator(tk.Frame):
                 )
             )[0]
             start_time = TimeStamp(stamp=past_data["last_time"])
-            # additional
             self.pdf_section.start_index = int(past_data["last_page_index"])
             self.audio_handler.set_file(past_data["audio_path"])
 
-        # opening pdf app
-
-        # opening audio app
-        if not start_time:
-            start_time = TimeStamp(seconds=0)
-
         await asyncio.gather(
             self.audio_handler.open_audio_file(start_time),
-            self.pdf_handler.open_pdf_with_sumatrapdf_at(section=self.pdf_section),
-        )
-
-        pdf_reader_window = gw.getWindowsWithTitle("SumatraPDF")[0]
-        x_offset = -7
-        y_offset = 0
-        y_size_offset = 6
-        pdf_reader_window.moveTo(x_offset, y_offset)
-        pdf_reader_window.resizeTo(
-            int(SCREEN_WIDTH * 0.7), SCREEN_HEIGHT + y_size_offset
-        )
-
-        sound_player_window = gw.getWindowsWithTitle("VLC media player")[0]
-        x_offset = -15
-        x_size_offset = 17
-        sound_player_window.moveTo(
-            int(SCREEN_WIDTH * 0.7) + x_offset, int(SCREEN_HEIGHT * 0.7)
-        )
-        sound_player_window.resizeTo(
-            int(SCREEN_WIDTH * 0.3) + x_size_offset, int(SCREEN_HEIGHT * 0.3)
+            self.pdf_handler.open_pdf_at(section=self.pdf_section),
         )
 
         self._setup_saving_components()
@@ -131,36 +110,31 @@ class PDFNavigator(tk.Frame):
         )
 
     def save_progress(self, stop_page_index, stop_time):
-        print("getting data")
         if not stop_page_index or not stop_time:
             return
 
-        print("data retrieved, saving...")
         if self.is_bookmark_chosen == True:
-            data = ReadingDataRow(
-                self.bookmark_choice.get(),
-                self.pdf_filename,
-                stop_page_index,
-                self.audio_handler.filename,
-                stop_time,
-            )
-            self.db.create_data(data)
+            bookmark_choice = self.bookmark_choice.get()
+            db_function = self.db.create_data
+            label = "Data saved"
             self.past_progress_bookmark_choice.set(self.bookmark_choice.get())
             self.bookmark_choice.set("")
             self.is_bookmark_chosen = False
-            label = "Data saved"
-            print(label)
+
         elif self.is_bookmark_chosen == False:
-            data = ReadingDataRow(
-                self.past_progress_bookmark_choice.get(),
-                self.pdf_filename,
-                stop_page_index,
-                self.audio_handler.filename,
-                stop_time,
-            )
-            self.db.update_data(data)
+            bookmark_choice = self.past_progress_bookmark_choice.get()
+            db_function = self.db.update_data
             label = "Data updated"
-            print(label)
+
+        data = ReadingDataRow(
+            bookmark_choice,
+            self.pdf_filename,
+            stop_page_index,
+            self.audio_handler.filename,
+            stop_time,
+        )
+        db_function(data)
+        print(label)
 
         self.main_gui.add_component(tk.Label(self.main_gui, text=label))
 
@@ -189,73 +163,68 @@ class PDFNavigator(tk.Frame):
     def _setup_loader_components(self):
         """Define and place tkinter components for book section loader application interface."""
 
-        if not self.is_loader_loaded:
-            tk_window = gw.getWindowsWithTitle("App Window")[0]
-            x_offset = -23
-            tk_window.moveTo(int(SCREEN_WIDTH * 0.7) + x_offset, 0)
+        tk_window = gw.getWindowsWithTitle("App Window")[0]
+        x_offset = -23
+        tk_window.moveTo(int(SCREEN_WIDTH * 0.7) + x_offset, 0)
 
-            self.bookmark_pages_list = [
-                str(section) for section in self.pdf_handler.get_sorted_section_list()
-            ]
-            self.past_progress = self._load_past_progress()
-            self.bookmark_choice = tk.StringVar()
-            self.past_progress_bookmark_choice = tk.StringVar()
+        self.bookmark_pages_list = [
+            str(section) for section in self.pdf_handler.get_sorted_section_list()
+        ]
+        self.past_progress = self._load_past_progress()
+        self.bookmark_choice = tk.StringVar()
+        self.past_progress_bookmark_choice = tk.StringVar()
 
-            bookmark = (
-                self.bookmark_choice,
-                self.bookmark_pages_list,
-                self._bookmark_choice_changed,
-            )
-            self.past_progress_pack = (
-                self.past_progress_bookmark_choice,
-                self.past_progress,
-                self._past_progress_choice_changed,
-            )
+        bookmark = (
+            self.bookmark_choice,
+            self.bookmark_pages_list,
+            self._bookmark_choice_changed,
+        )
+        self.past_progress_pack = (
+            self.past_progress_bookmark_choice,
+            self.past_progress,
+            self._past_progress_choice_changed,
+        )
 
-            progress_loader = ProgessLoader(
-                bookmark,
-                self.past_progress_pack,
-                self.open_pdf_page_and_audio,
-                self.main_gui,
-            )
-            self.bookmark_menu = progress_loader.bookmark_menu
-            self.saved_progress_menu = progress_loader.saved_progress_menu
-            # Components
-            self.main_gui.add_component(progress_loader)
-            self.main_gui.add_component(Separator(self.main_gui))
+        progress_loader = ProgessLoader(
+            bookmark,
+            self.past_progress_pack,
+            self.open_pdf_page_and_audio,
+            self.main_gui,
+        )
+        self.bookmark_menu = progress_loader.bookmark_menu
+        self.saved_progress_menu = progress_loader.saved_progress_menu
+        # Components
+        self.main_gui.add_component(progress_loader)
+        self.main_gui.add_component(Separator(self.main_gui))
 
-        else:
-            self.past_progress = self._load_past_progress()
-            self.bookmark_pages_list = [
-                str(section) for section in self.pdf_handler.get_sorted_section_list()
-            ]
-            self.bookmark_menu.update_choices(new_choices=self.bookmark_pages_list)
-            self.saved_progress_menu.update_choices(new_choices=self.past_progress)
+    def _reload_loader_components(self):
+        self.past_progress = self._load_past_progress()
+        self.bookmark_pages_list = [
+            str(section) for section in self.pdf_handler.get_sorted_section_list()
+        ]
+        self.bookmark_menu.update_choices(new_choices=self.bookmark_pages_list)
+        self.saved_progress_menu.update_choices(new_choices=self.past_progress)
 
-            self.bookmark_choice.set("")
-            self.past_progress_bookmark_choice.set("")
-        self.is_loader_loaded = True
+        self.bookmark_choice.set("")
+        self.past_progress_bookmark_choice.set("")
 
     def _setup_saving_components(self):
         """Define and place tkinter components for saving progress loader application interface."""
 
-        if not self.is_saving_loaded:
-            # progress saver
+        # progress saver
 
-            self.save_component = ProgessSaver(self.save_progress, self.main_gui)
+        self.save_component = ProgessSaver(self.save_progress, self.main_gui)
 
-            self.main_gui.add_component(self.save_component)
-            self.main_gui.add_component(Separator(self.main_gui))
+        self.main_gui.add_component(self.save_component)
+        self.main_gui.add_component(Separator(self.main_gui))
 
-            # progress deleter
-            progress_deleter = ProgessDeleter(
-                self.delete_bookmark, self.past_progress_pack, self.main_gui
-            )
-            self.delete_progress_menu = progress_deleter.delete_progress_menu
-            self.main_gui.add_component(progress_deleter)
-            self.main_gui.add_component(Separator(self.main_gui))
-
-        self.is_saving_loaded = True
+        # progress deleter
+        progress_deleter = ProgessDeleter(
+            self.delete_bookmark, self.past_progress_pack, self.main_gui
+        )
+        self.delete_progress_menu = progress_deleter.delete_progress_menu
+        self.main_gui.add_component(progress_deleter)
+        self.main_gui.add_component(Separator(self.main_gui))
 
     def _bookmark_choice_changed(self, *args):
         self.is_bookmark_chosen = True
@@ -291,7 +260,7 @@ class PDFNavigator(tk.Frame):
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("App Window")
+    root.title("PDF to Audio App")
     x_offset = 23
     target_width = int(SCREEN_WIDTH * 0.3) + x_offset
     target_height = int(SCREEN_HEIGHT * 0.7)
@@ -299,21 +268,6 @@ if __name__ == "__main__":
 
     nv = PDFNavigator(root)
     nv.pack(fill="both", expand=1)
-    # nv.grid(row=0, column=0, sticky="nsew")
 
-    # root.grid_rowconfigure(0, weight=1)
-    # root.grid_columnconfigure(0, weight=1)
-
-    # def resize_frame(event):
-    #     nv.grid_propagate(0)
-
-    # root.bind("<Configure>", resize_frame)
-
-    # def additional_code():
-    # nv.db.close()
-
-    # GUI setup code here
-
-    # root.after(500, additional_code)
     root.mainloop()
     nv.db.db.close()
